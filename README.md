@@ -1,6 +1,6 @@
-# CrowdFundingX
+# CrowdFunding
 
-CrowdFundingX is a full-stack web application designed to simplify crowdfunding campaigns.  
+CrowdFunding is a full-stack web application designed to simplify crowdfunding campaigns.  
 It provides a secure backend, a responsive frontend, and tools for managing projects and donations.
 
 ---
