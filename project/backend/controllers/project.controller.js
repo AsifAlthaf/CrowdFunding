@@ -1,0 +1,186 @@
+import Project from '../models/project.js';
+import User from '../models/User.js';
+
+export const createProject = async (req, res) => {
+  try {
+    const { title, description, equity, category, targetAmount, startDate, endDate } = req.body;
+
+    if (!title || !description || !equity || !targetAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
+    let image = '';
+    if (req.file) {
+      image = `/uploads/projects/${req.file.filename}`;
+    }
+
+    const project = await Project.create({
+      title,
+      description,
+      equity,
+      category: category || 'Other',
+      targetAmount,
+      startDate,
+      endDate,
+      image,
+      creator: req.user.id,
+      status: 'pending'
+    });
+
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $push: { createdProjects: project._id } }
+    );
+
+    const io = req.app.get('io');
+    io.emit('newProject', project);
+
+    res.status(201).json({
+      success: true,
+      project
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getAllProjects = async (req, res) => {
+  try {
+    const projects = await Project.find({ status: 'approved' })
+      .populate('creator', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(projects);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getUserProjects = async (req, res) => {
+  try {
+    const projects = await Project.find({ creator: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(projects);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getProjectById = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate('creator', 'name email bio');
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    res.status(200).json(project);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const updateProject = async (req, res) => {
+  try {
+    let project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (project.creator.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this project'
+      });
+    }
+
+    const updateData = req.body;
+
+    if (req.file) {
+      updateData.image = `/uploads/projects/${req.file.filename}`;
+    }
+
+    project = await Project.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    const io = req.app.get('io');
+    io.emit('projectUpdated', project);
+
+    res.status(200).json({
+      success: true,
+      project
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const deleteProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (project.creator.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this project'
+      });
+    }
+
+    await Project.findByIdAndDelete(req.params.id);
+
+    await User.findByIdAndUpdate(
+      project.creator,
+      { $pull: { createdProjects: req.params.id } }
+    );
+
+    const io = req.app.get('io');
+    io.emit('projectDeleted', req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Project deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

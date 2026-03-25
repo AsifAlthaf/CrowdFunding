@@ -1,0 +1,173 @@
+import User from '../models/User.js';
+import Project from '../models/project.js';
+import Document from '../models/Document.js';
+import Investment from '../models/Investment.js';
+
+export const getDashboardStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalProjects = await Project.countDocuments();
+    const approvedProjects = await Project.countDocuments({ status: 'approved' });
+    const pendingProjects = await Project.countDocuments({ status: 'pending' });
+    const pendingDocuments = await Document.countDocuments({ status: 'pending' });
+    const totalInvestments = await Investment.countDocuments();
+
+    const investmentStats = await Investment.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    const totalInvestedAmount = investmentStats[0]?.totalAmount || 0;
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalProjects,
+        approvedProjects,
+        pendingProjects,
+        pendingDocuments,
+        totalInvestments,
+        totalInvestedAmount
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getAllProjects = async (req, res) => {
+  try {
+    const projects = await Project.find()
+      .populate('creator', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      projects
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const updateProjectStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      project
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const deleteProject = async (req, res) => {
+  try {
+    const project = await Project.findByIdAndDelete(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    await User.findByIdAndUpdate(
+      project.creator,
+      { $pull: { createdProjects: req.params.id } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Project deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const updateUserStatus = async (req, res) => {
+  try {
+    const { isVerified } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isVerified },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
