@@ -1,147 +1,288 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { Container, Row, Col, Card, Button, ProgressBar, Badge, Spinner, Alert, Form } from 'react-bootstrap';
-import { ArrowRight, Rocket, Users, DollarSign } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { Filter, Search, ArrowRight, Users, DollarSign, Clock, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button, Card, Container, Flex, Grid, Input } from '../components/ui';
+import { projectAPI } from '../services/api';
+
+const PageHeader = styled.div`
+  padding: 4rem 0;
+  text-align: center;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+`;
+
+const FilterSection = styled.div`
+  padding: 2rem 0;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+`;
+
+const CampaignGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2rem;
+  padding: 4rem 0;
+`;
+
+const CampaignCard = styled(Card)`
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`;
+
+const ImageWrapper = styled.div`
+  height: 200px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: #eee;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  ${CampaignCard}:hover & img {
+    transform: scale(1.05);
+  }
+`;
+
+const Badge = styled.span`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: ${props => props.theme.colors.primary};
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+`;
+
+const Content = styled.div`
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
+const Category = styled.span`
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: ${props => props.theme.colors.primary};
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+  display: block;
+`;
+
+const Title = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: ${props => props.theme.colors.text};
+`;
+
+const Description = styled.p`
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const ProgressInfo = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
+const ProgressBarBase = styled.div`
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+`;
+
+const ProgressBarFill = styled.div`
+  height: 100%;
+  background: ${props => props.theme.colors.primary};
+  width: ${props => props.progress}%;
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+  margin-top: auto;
+`;
+
+const StatItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.85rem;
+`;
 
 const Campaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const calculateDaysLeft = (endDate) => {
     const end = new Date(endDate);
     const today = new Date();
     const diffTime = end - today;
-    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); // no negative values
+    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   };
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        const res = await axios.get("http://localhost:5000/api/projects");
-        setCampaigns(res.data || []);
-        setLoading(false);
-      } catch (err) {
-        setError("Failed to fetch campaigns.");
-        setLoading(false);
-      }
-    };
-
     fetchCampaigns();
   }, []);
 
-  // Extract unique categories from campaigns
+  const fetchCampaigns = async () => {
+    try {
+      const res = await projectAPI.getProjects();
+      setCampaigns(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch campaigns:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const categories = ["All", ...Array.from(new Set(campaigns.map(c => c.category).filter(Boolean)))];
 
-  // Filter campaigns based on selected category
-  const filteredCampaigns = selectedCategory === "All"
-    ? campaigns
-    : campaigns.filter(c => c.category === selectedCategory);
+  const filteredCampaigns = campaigns.filter(c => {
+    const matchesCategory = selectedCategory === "All" || c.category === selectedCategory;
+    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         c.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
-    <Container className="py-5">
-      <div className="text-center mb-5">
-        <h1 className="display-4 mb-3">Investment Opportunities</h1>
-        <p className="lead text-muted">Discover and invest in promising startups across various industries</p>
-      </div>
+    <>
+      <PageHeader>
+        <Container>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem', letterSpacing: '-1px' }}>
+              B2B Marketplace
+            </h1>
+            <p style={{ color: '#666', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+              Discover promising startups, connect with MNCS, and find the next big success story in the global ecosystem.
+            </p>
+          </motion.div>
+        </Container>
+      </PageHeader>
 
-      {/* Category Dropdown */}
-      <div className="mb-4 d-flex justify-content-end">
-        <Form.Select
-          style={{ maxWidth: 300 }}
-          value={selectedCategory}
-          onChange={e => setSelectedCategory(e.target.value)}
-        >
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </Form.Select>
-      </div>
+      <FilterSection>
+        <Container>
+          <Flex justify="space-between" wrap="wrap" gap="1rem">
+            <Flex gap="1rem">
+              <div style={{ position: 'relative', width: '300px' }}>
+                <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
+                <Input 
+                  style={{ paddingLeft: '2.75rem' }} 
+                  placeholder="Search campaigns..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Flex gap="0.5rem">
+                {categories.map(cat => (
+                  <Button 
+                    key={cat} 
+                    variant={selectedCategory === cat ? 'primary' : 'outline'} 
+                    size="sm"
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </Button>
+                ))}
+              </Flex>
+            </Flex>
+            <div style={{ color: '#666', fontSize: '0.9rem', fontWeight: 500 }}>
+              Showing {filteredCampaigns.length} campaigns
+            </div>
+          </Flex>
+        </Container>
+      </FilterSection>
 
-      {/* Loading & Error Handling */}
-      {loading && <div className="text-center"><Spinner animation="border" /></div>}
-      {error && <Alert variant="danger">{error}</Alert>}
+      <Container>
+        <CampaignGrid>
+          {loading ? (
+            <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '4rem' }}>Loading campaigns...</div>
+          ) : (
+            filteredCampaigns.map(campaign => {
+              const progress = Math.min(100, (campaign.currentAmount / campaign.targetAmount) * 100);
+              const daysLeft = calculateDaysLeft(campaign.endDate);
+              const isLocked = daysLeft === 0;
 
-      {/* Campaigns Grid */}
-      <Row>
-        {!loading && filteredCampaigns.map(campaign => (
-          <Col key={campaign._id} md={6} className="mb-4">
-            <Card className="h-100 shadow-sm">
-              <Card.Img
-                variant="top"
-                src={campaign.image?.startsWith('http') ? campaign.image : `http://localhost:5000${campaign.image}`}
-                style={{ height: '240px', objectFit: 'cover' }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://via.placeholder.com/500x300?text=No+Image';
-                }}
-              />
-              <Card.Body>
-                <div className="d-flex justify-content-between mb-2">
-                  <Badge bg="primary">{campaign.category}</Badge>
-                  <Badge bg="info">{calculateDaysLeft(campaign.endDate)} days left</Badge>
-                </div>
-                <Card.Title className="h5">{campaign.title}</Card.Title>
-                <Card.Text className="text-muted">{campaign.description?.slice(0, 130)}...</Card.Text>
+              return (
+                <CampaignCard key={campaign._id}>
+                  <ImageWrapper>
+                    <img 
+                      src={campaign.image?.startsWith('http') ? campaign.image : `http://localhost:5000${campaign.image}`} 
+                      alt={campaign.title}
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&q=80&w=2070'; }}
+                    />
+                    <Badge>
+                      {isLocked ? <CheckCircle2 size={12} style={{ marginRight: 4, display: 'inline' }} /> : <Clock size={12} style={{ marginRight: 4, display: 'inline' }} />}
+                      {isLocked ? 'COMPLETED' : `${daysLeft} DAYS LEFT`}
+                    </Badge>
+                  </ImageWrapper>
+                  <Content>
+                    <Category>{campaign.category}</Category>
+                    <Title>{campaign.title}</Title>
+                    <Description>{campaign.description}</Description>
+                    
+                    <ProgressInfo>
+                      <Flex justify="space-between" style={{ marginBottom: '0.25rem', fontSize: '0.85rem' }}>
+                        <span style={{ fontWeight: 600 }}>{progress.toFixed(1)}% funded</span>
+                        <span style={{ color: '#666' }}>Target: ₹{campaign.targetAmount.toLocaleString()}</span>
+                      </Flex>
+                      <ProgressBarBase>
+                        <ProgressBarFill progress={progress}/>
+                      </ProgressBarBase>
+                    </ProgressInfo>
 
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Progress</span>
-                    <span className="fw-bold">
-                      {((campaign.currentAmount / campaign.targetAmount) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  <ProgressBar
-                    now={(campaign.currentAmount / campaign.targetAmount) * 100}
-                    variant="success"
-                  />
-                  <div className="d-flex justify-content-between small mt-2 text-muted">
-                    <span>Raised: ₹{campaign.currentAmount.toLocaleString()}</span>
-                    <span>Goal: ₹{campaign.targetAmount.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="border-top pt-3">
-                  <Row className="mb-3">
-                    <Col xs={6}>
-                      <div className="d-flex align-items-center">
-                        <Users size={16} className="text-muted me-2" />
-                        <span className="small text-muted">{campaign.creator?.name || 'Unknown'}</span>
-                      </div>
-                    </Col>
-                    <Col xs={6}>
-                      <div className="d-flex align-items-center">
-                        <DollarSign size={16} className="text-muted me-2" />
-                        <span className="small text-muted">Equity: {campaign.equity}</span>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  <Link to={`/projects/${campaign._id}`}>
-                    <Button variant="primary" className="w-100 d-flex align-items-center justify-content-center">
-                      View Details <ArrowRight size={18} className="ms-2" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* CTA */}
-      <div className="text-center mt-5 pt-3">
-        <h3 className="mb-4">Don't miss out on the next big opportunity</h3>
-        <Link to="/projects/new">
-          <Button variant="success" size="lg">
-            <Rocket size={20} className="me-2" />
-            Launch Your Campaign
-          </Button>
-        </Link>
-      </div>
-    </Container>
+                    <StatsGrid>
+                      <StatItem>
+                        <Users size={16} />
+                        <span>{campaign.creator?.name || 'Vetted Startup'}</span>
+                      </StatItem>
+                      <StatItem style={{ justifyContent: 'flex-end' }}>
+                        <DollarSign size={16} />
+                        <span>Equity: {campaign.equity}</span>
+                      </StatItem>
+                    </StatsGrid>
+                    
+                    <Link to={`/projects/${campaign._id}`} style={{ textDecoration: 'none', marginTop: '1.5rem' }}>
+                      <Button style={{ width: '100%' }}>
+                        View Portfolio <ArrowRight size={18} style={{ marginLeft: 8 }} />
+                      </Button>
+                    </Link>
+                  </Content>
+                </CampaignCard>
+              );
+            })
+          )}
+        </CampaignGrid>
+      </Container>
+    </>
   );
 };
 

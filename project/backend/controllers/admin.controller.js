@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Project from '../models/project.js';
 import Document from '../models/Document.js';
 import Investment from '../models/Investment.js';
+import Company from '../models/Company.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -158,6 +159,16 @@ export const updateUserStatus = async (req, res) => {
         success: false,
         message: 'User not found'
       });
+    }
+
+    if (user && isVerified) {
+      await Company.findOneAndUpdate(
+        { user: user._id },
+        { 
+          $set: { isVerified: true },
+          $push: { activityLog: { milestone: 'Earned Official Platform Verification Badge', type: 'automatic' } }
+        }
+      );
     }
 
     res.status(200).json({

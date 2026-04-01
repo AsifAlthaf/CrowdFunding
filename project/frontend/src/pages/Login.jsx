@@ -1,8 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
+import styled from 'styled-components';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { motion } from 'framer-motion';
+import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Button, Input, Card, Container, Flex } from '../components/ui';
 import useAuthStore from '../store/authStore';
+
+const LoginWrapper = styled.div`
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top right, #0077b60a 0%, #ffffff 100%);
+`;
+
+const FormTitle = styled.h2`
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  letter-spacing: -1px;
+`;
+
+const FormSubtitle = styled.p`
+  color: #666;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1.5rem;
+  position: relative;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 0.5rem;
+`;
+
+const ErrorBox = styled.div`
+  background: #fff5f5;
+  color: #e53e3e;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #fed7d7;
+`;
+
+const FormIcon = styled.div`
+  position: absolute;
+  left: 1rem;
+  top: 2.3rem;
+  color: #9e9e9e;
+`;
+
+const StyledInput = styled(Input)`
+  padding-left: 2.75rem;
+`;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -16,7 +78,6 @@ const Login = () => {
   });
 
   useEffect(() => {
-    // If already authenticated, redirect
     if (isAuthenticated) {
       navigate(from, { replace: true });
     }
@@ -38,61 +99,76 @@ const Login = () => {
   };
 
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={6} lg={5}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <h2 className="text-center mb-4">Welcome Back</h2>
-              {error && <Alert variant="danger">{error}</Alert>}
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
+    <LoginWrapper>
+      <Container>
+        <Flex justify="center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{ width: '100%', maxWidth: '440px' }}
+          >
+            <Card>
+              <FormTitle>Welcome Back</FormTitle>
+              <FormSubtitle>Log in to access the B2B SaaS network</FormSubtitle>
+              
+              {error && (
+                <ErrorBox>
+                  <AlertCircle size={18} />
+                  {error}
+                </ErrorBox>
+              )}
+              
+              <form onSubmit={handleSubmit}>
+                <FormGroup>
+                  <Label>Email address</Label>
+                  <FormIcon><Mail size={18} /></FormIcon>
+                  <StyledInput
                     type="email"
                     name="email"
-                    placeholder="Enter email"
+                    placeholder="name@company.com"
                     value={formData.email}
                     onChange={handleChange}
                     required
                   />
-                </Form.Group>
+                </FormGroup>
 
-                <Form.Group className="mb-4">
-                  <Form.Label>Password</Form.Label>
-                  <Form.Control
+                <FormGroup>
+                  <Label>Password</Label>
+                  <FormIcon><Lock size={18} /></FormIcon>
+                  <StyledInput
                     type="password"
                     name="password"
-                    placeholder="Password"
+                    placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleChange}
                     required
                   />
-                </Form.Group>
+                </FormGroup>
 
                 <Button 
-                  variant="primary" 
                   type="submit" 
-                  className="w-100 mb-3"
                   disabled={isLoading}
+                  style={{ width: '100%', marginBottom: '1.5rem' }}
                 >
-                  {isLoading ? 'Logging in...' : 'Login'}
+                  <LogIn size={18} style={{ marginRight: 8 }} />
+                  {isLoading ? 'Verifying...' : 'Log in'}
                 </Button>
 
-                <div className="text-center">
-                  <small className="text-muted">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-decoration-none">
-                      Register here
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                    New to StartupFund?{' '}
+                    <Link to="/register" style={{ color: '#0077b6', fontWeight: 600, textDecoration: 'none' }}>
+                      Get started
                     </Link>
-                  </small>
+                  </span>
                 </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+              </form>
+            </Card>
+          </motion.div>
+        </Flex>
+      </Container>
+    </LoginWrapper>
   );
 };
 

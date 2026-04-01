@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,7 +11,6 @@ const api = axios.create({
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config) => {
-    // Check for admin token first, then regular token
     const adminToken = localStorage.getItem('adminToken');
     const token = localStorage.getItem('token');
     const authToken = adminToken || token;
@@ -31,7 +30,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access - clear both token types
       localStorage.removeItem('token');
       localStorage.removeItem('adminToken');
       localStorage.removeItem('user');
@@ -48,7 +46,27 @@ export const projectAPI = {
   createProject: (data) => api.post('/projects', data),
   getProjects: () => api.get('/projects'),
   getProject: (id) => api.get(`/projects/${id}`),
-  getUserProjects: () => api.get('/projects/user'),
+  getUserProjects: () => api.get('/projects/user/projects'),
+  lockProject: (id) => api.post(`/projects/${id}/lock`),
+};
+
+export const b2bAPI = {
+  getCompanies: () => api.get('/companies'),
+  getCompany: (id) => api.get(`/companies/${id}`),
+  updateCompany: (id, data) => api.put(`/companies/${id}`, data),
+  getReviews: (companyId) => api.get(`/reviews/company/${companyId}`),
+  postReview: (data) => api.post('/reviews', data),
+  postComplaint: (data) => api.post('/complaints', data),
+};
+
+export const chatAPI = {
+  getMessages: (receiverId) => api.get(`/messages/${receiverId}`),
+  sendMessage: (data) => api.post('/messages', data),
+};
+
+export const documentAPI = {
+  uploadDocument: (data) => api.post('/documents/upload', data),
+  getDocuments: (ownerId) => api.get(`/documents/owner/${ownerId}`),
 };
 
 export const userAPI = {
@@ -64,4 +82,4 @@ export const investmentAPI = {
   getProjectInvestments: (projectId) => api.get(`/investments/project/${projectId}`),
 };
 
-export default api; 
+export default api;

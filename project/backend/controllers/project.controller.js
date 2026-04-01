@@ -111,6 +111,13 @@ export const updateProject = async (req, res) => {
       });
     }
 
+    if (project.isLocked) {
+      return res.status(403).json({
+        success: false,
+        message: 'This campaign is locked and cannot be updated'
+      });
+    }
+
     if (project.creator.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -144,6 +151,22 @@ export const updateProject = async (req, res) => {
     });
   }
 };
+
+export const lockExpiredProjects = async () => {
+    try {
+        const now = new Date();
+        const result = await Project.updateMany(
+            { endDate: { $lt: now }, isLocked: false },
+            { $set: { isLocked: true } }
+        );
+        if (result.modifiedCount > 0) {
+            console.log(`Locked ${result.modifiedCount} expired projects.`);
+        }
+    } catch (error) {
+        console.error('Error locking expired projects:', error);
+    }
+};
+
 
 export const deleteProject = async (req, res) => {
   try {

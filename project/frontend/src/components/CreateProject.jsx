@@ -1,528 +1,309 @@
 import React, { useState } from 'react';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Form,
-  Button,
-  Alert,
-  Row,
-  Col,
-  Card,
-} from 'react-bootstrap';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Rocket, 
+  ArrowRight, 
+  ArrowLeft, 
+  Upload, 
+  DollarSign, 
+  Calendar, 
+  CheckCircle2,
+  FileText,
+  ShieldCheck,
+  Target
+} from 'lucide-react';
 import { toast } from 'react-toastify';
-import api from '../services/api';
-import '../styles/CreateProject3D.css';
+import { Button, Card, Container, Flex, Grid, Input } from './ui';
+import { projectAPI } from '../services/api';
+
+const CreateWrapper = styled.div`
+  padding: 4rem 0;
+  background: #fafafa;
+  min-height: calc(100vh - 80px);
+`;
+
+const Stepper = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-bottom: 3rem;
+`;
+
+const StepItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  items: center;
+  gap: 0.5rem;
+  opacity: ${props => props.active ? 1 : 0.4};
+  transition: all 0.3s;
+`;
+
+const StepCircle = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: ${props => props.active ? props.theme.colors.primary : '#eee'};
+  color: ${props => props.active ? 'white' : '#666'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+`;
+
+const StepLabel = styled.span`
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+`;
+
+const FormSection = styled(motion.div)`
+  max-width: 700px;
+  margin: 0 auto;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #444;
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  background: white;
+  margin-bottom: 1.5rem;
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  min-height: 150px;
+  margin-bottom: 1.5rem;
+  resize: vertical;
+`;
 
 const CreateProject = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [documentError, setDocumentError] = useState('');
-  const [documents, setDocuments] = useState({
-    identity: null,
-    address: null,
-    financial: null,
-  });
-
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'Technology',
     targetAmount: '',
+    equity: '',
     startDate: '',
     endDate: '',
-    imageType: 'url',
-    imageUrl: '',
-    equity: '',
+    image: null
   });
 
-  const categories = [
-    'Technology',
-    'Education',
-    'Healthcare',
-    'Environment',
-    'Social',
-    'Other',
-  ];
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    // Convert numeric fields to Number
-    const numericFields = ['equity', 'targetAmount'];
-    const parsed = numericFields.includes(name) ? Number(value) : value;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: parsed,
-    }));
-  };
-
-  const handleDocumentChange = (e, docType) => {
-    const selectedFile = e.target.files[0];
-
-    if (!selectedFile) return;
-
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!allowedTypes.includes(selectedFile.type)) {
-      setDocumentError('Only PDF, JPEG, and PNG files are allowed');
-      return;
+  const handleChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === 'image') {
+      setFormData({ ...formData, image: files[0] });
+    } else {
+      setFormData({ ...formData, [name]: value });
     }
-
-    // Validate file size (5MB limit)
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setDocumentError('File size should not exceed 5MB');
-      return;
-    }
-
-    setDocumentError('');
-    setDocuments((prev) => ({
-      ...prev,
-      [docType]: selectedFile,
-    }));
-    toast.success(`${docType.charAt(0).toUpperCase() + docType.slice(1)} document uploaded`);
-  };
-
-  const isStep1Valid = () => {
-    return formData.title && formData.description && formData.category;
-  };
-
-  const isStep2Valid = () => {
-    return formData.targetAmount && formData.startDate && formData.endDate && formData.equity;
-  };
-
-  const isStep3Valid = () => {
-    return formData.image;
-  };
-
-  const isStep4Valid = () => {
-    return documents.identity && documents.address;
-  };
-
-  const handleNextStep = () => {
-    if (currentStep === 1 && !isStep1Valid()) {
-      const errorMsg = 'Please fill in project title, description, and category';
-      setError(errorMsg);
-      toast.error(errorMsg);
-      return;
-    }
-    if (currentStep === 2 && !isStep2Valid()) {
-      const errorMsg = 'Please fill in target amount, dates, and equity';
-      setError(errorMsg);
-      toast.error(errorMsg);
-      return;
-    }
-    if (currentStep === 3 && !isStep3Valid()) {
-      const errorMsg = 'Please upload a project image';
-      setError(errorMsg);
-      toast.error(errorMsg);
-      return;
-    }
-    setError(null);
-    setCurrentStep(currentStep + 1);
-  };
-
-  const handlePrevStep = () => {
-    setError(null);
-    setCurrentStep(currentStep - 1);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!isStep4Valid()) {
-      const errorMsg = 'Please upload at least identity and address documents';
-      setError(errorMsg);
-      toast.error(errorMsg);
-      return;
-    }
-
-    setError(null);
     setLoading(true);
-
+    
     const payload = new FormData();
-    payload.append('title', formData.title.trim());
-    payload.append('description', formData.description.trim());
-    payload.append('category', formData.category);
-    payload.append('targetAmount', Number(formData.targetAmount));
-    payload.append('startDate', formData.startDate);
-    payload.append('endDate', formData.endDate);
-    payload.append('equity', Number(formData.equity));
-    payload.append('image', formData.image);
-
-    // Append documents
-    if (documents.identity) {
-      payload.append('documents', documents.identity, `identity_${Date.now()}.pdf`);
-    }
-    if (documents.address) {
-      payload.append('documents', documents.address, `address_${Date.now()}.pdf`);
-    }
-    if (documents.financial) {
-      payload.append('documents', documents.financial, `financial_${Date.now()}.pdf`);
-    }
+    Object.keys(formData).forEach(key => {
+      payload.append(key, formData[key]);
+    });
 
     try {
-      // Use api instance (handles baseURL and auth token automatically)
-      await api.post('/projects', payload, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          // Authorization header is added by interceptor
-        },
-      });
-
-      toast.success('Project created successfully!');
+      await projectAPI.createProject(payload);
+      toast.success('Campaign launched successfully! Awaiting verification.');
       navigate('/dashboard');
-    } catch (err) {
-      console.error('Error creating project:', err);
-      setError(
-        err.response?.data?.message || 'Unexpected error—please try again.'
-      );
-      toast.error('Failed to create project');
+    } catch (error) {
+      toast.error('Failed to launch campaign');
     } finally {
       setLoading(false);
     }
   };
 
+  const nextStep = () => setCurrentStep(prev => prev + 1);
+  const prevStep = () => setCurrentStep(prev => prev - 1);
+
   return (
-    <Container className="py-5 create-project-container">
-      <div className="form-3d-wrapper">
-        {/* Step Indicator */}
-        <div className="step-indicator-3d">
-          <div className={`step-badge ${currentStep >= 1 ? 'active' : ''}`}>
-            <span className="step-number">1</span>
-            <span className="step-label">Project Info</span>
-          </div>
-          <div className="step-connector"></div>
-          <div className={`step-badge ${currentStep >= 2 ? 'active' : ''}`}>
-            <span className="step-number">2</span>
-            <span className="step-label">Funding</span>
-          </div>
-          <div className="step-connector"></div>
-          <div className={`step-badge ${currentStep >= 3 ? 'active' : ''}`}>
-            <span className="step-number">3</span>
-            <span className="step-label">Media</span>
-          </div>
-          <div className="step-connector"></div>
-          <div className={`step-badge ${currentStep >= 4 ? 'active' : ''}`}>
-            <span className="step-number">4</span>
-            <span className="step-label">Documents</span>
-          </div>
-        </div>
+    <CreateWrapper>
+      <Container>
+        <Stepper>
+          <StepItem active={currentStep >= 1}>
+            <StepCircle active={currentStep >= 1}>1</StepCircle>
+            <StepLabel>Identity</StepLabel>
+          </StepItem>
+          <StepItem active={currentStep >= 2}>
+            <StepCircle active={currentStep >= 2}>2</StepCircle>
+            <StepLabel>Strategy</StepLabel>
+          </StepItem>
+          <StepItem active={currentStep >= 3}>
+            <StepCircle active={currentStep >= 3}>3</StepCircle>
+            <StepLabel>Assets</StepLabel>
+          </StepItem>
+        </Stepper>
 
-        {/* Main Card with 3D Effect */}
-        <Card className="card-3d-surface">
-          <Card.Header className="header-3d">
-            <h2 className="title-3d">
-              🚀 Launch Your Campaign
-            </h2>
-            <p className="subtitle-3d">Step {currentStep} of 4</p>
-          </Card.Header>
-
-          <Card.Body className="body-3d">
-            {error && <Alert variant="danger" className="alert-3d">{error}</Alert>}
-            {documentError && <Alert variant="warning" className="alert-3d">{documentError}</Alert>}
-
-            <Form onSubmit={handleSubmit}>
-              {/* STEP 1: Project Info */}
+        <FormSection
+          key={currentStep}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card style={{ padding: '3rem' }}>
+            <form onSubmit={handleSubmit}>
               {currentStep === 1 && (
-                <div className="form-step-container">
-                  <h4 className="step-title">Project Information</h4>
+                <>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-1px' }}>Project Identity</h2>
+                  <p style={{ color: '#666', marginBottom: '2.5rem' }}>Define the core vision of your B2B venture.</p>
                   
-                  <Form.Group className="form-group-3d mb-4">
-                    <Form.Label className="label-3d">Project Title</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Enter your project title"
-                      className="input-3d"
-                    />
-                  </Form.Group>
+                  <Label>Campaign Title</Label>
+                  <Input 
+                    name="title" 
+                    placeholder="e.g. Next-Gen AI Logistics" 
+                    value={formData.title} 
+                    onChange={handleChange}
+                    style={{ marginBottom: '1.5rem' }}
+                    required
+                  />
 
-                  <Form.Group className="form-group-3d mb-4">
-                    <Form.Label className="label-3d">Description</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      name="description"
-                      rows={5}
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Describe your project's vision, goals, and impact"
-                      className="input-3d textarea-3d"
-                    />
-                  </Form.Group>
+                  <Label>Detailed Vision</Label>
+                  <TextArea 
+                    name="description" 
+                    placeholder="What problem are you solving for the ecosystem?" 
+                    value={formData.description} 
+                    onChange={handleChange}
+                    required
+                  />
 
-                  <Form.Group className="form-group-3d">
-                    <Form.Label className="label-3d">Category</Form.Label>
-                    <Form.Select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      required
-                      className="input-3d"
-                    >
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </div>
+                  <Label>Category</Label>
+                  <Select name="category" value={formData.category} onChange={handleChange}>
+                    <option value="Technology">Technology</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Education">Education</option>
+                    <option value="Environment">Environment</option>
+                    <option value="Social">Social</option>
+                    <option value="Other">Other</option>
+                  </Select>
+                </>
               )}
 
-              {/* STEP 2: Funding Details */}
               {currentStep === 2 && (
-                <div className="form-step-container">
-                  <h4 className="step-title">Funding & Timeline</h4>
-
-                  <Row className="mb-4">
-                    <Col md={6}>
-                      <Form.Group className="form-group-3d">
-                        <Form.Label className="label-3d">Target Amount (₹)</Form.Label>
-                        <Form.Control
-                          type="number"
-                          name="targetAmount"
-                          value={formData.targetAmount}
-                          onChange={handleInputChange}
-                          required
-                          min={0}
-                          placeholder="e.g. 50000"
-                          className="input-3d"
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="form-group-3d">
-                        <Form.Label className="label-3d">Equity Offered (%)</Form.Label>
-                        <Form.Control
-                          type="number"
-                          name="equity"
-                          value={formData.equity}
-                          onChange={handleInputChange}
-                          placeholder="e.g. 10"
-                          min={0}
-                          max={100}
-                          required
-                          className="input-3d"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-
-                  <Row>
-                    <Col md={6}>
-                      <Form.Group className="form-group-3d">
-                        <Form.Label className="label-3d">Start Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          name="startDate"
-                          value={formData.startDate}
-                          onChange={handleInputChange}
-                          required
-                          min={new Date().toISOString().split('T')[0]}
-                          className="input-3d"
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="form-group-3d">
-                        <Form.Label className="label-3d">End Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          name="endDate"
-                          value={formData.endDate}
-                          onChange={handleInputChange}
-                          required
-                          min={formData.startDate || new Date().toISOString().split('T')[0]}
-                          className="input-3d"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </div>
-              )}
-
-              {/* STEP 3: Project Image */}
-              {currentStep === 3 && (
-                <div className="form-step-container">
-                  <h4 className="step-title">Project Media</h4>
+                <>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-1px' }}>Funding Strategy</h2>
+                  <p style={{ color: '#666', marginBottom: '2.5rem' }}>Set your financial goals and timeline.</p>
                   
-                  <div className="form-group-3d image-upload-3d">
-                    <label className="label-3d">Project Cover Image</label>
-                    <div className="image-upload-box">
-                      <div className="upload-icon">
-                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                          <path d="M24 8L24 40M8 24H40" stroke="#0d6efd" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                      <p className="upload-text">
-                        {formData.image ? (
-                          <>
-                            ✓ <strong>{formData.image.name}</strong>
-                          </>
-                        ) : (
-                          <>
-                            Click to upload or drag and drop<br/>
-                            <small>(JPG, PNG - Max 5MB)</small>
-                          </>
-                        )}
-                      </p>
-                      <input
-                        type="file"
-                        name="image"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file && file.size > 5 * 1024 * 1024) {
-                            const errorMsg = 'Image size should not exceed 5MB';
-                            setError(errorMsg);
-                            toast.error(errorMsg);
-                            return;
-                          }
-                          setError(null);
-                          setFormData((prev) => ({
-                            ...prev,
-                            image: file,
-                          }));
-                          toast.success('Image uploaded successfully');
-                        }}
+                  <Grid cols={2} gap="1.5rem">
+                    <div>
+                      <Label>Target Amount (₹)</Label>
+                      <Input 
+                        type="number" 
+                        name="targetAmount" 
+                        placeholder="5,000,000" 
+                        value={formData.targetAmount} 
+                        onChange={handleChange}
                         required
-                        className="input-file-3d"
                       />
                     </div>
-                  </div>
-                </div>
+                    <div>
+                      <Label>Equity Offered (%)</Label>
+                      <Input 
+                        type="number" 
+                        name="equity" 
+                        placeholder="10" 
+                        value={formData.equity} 
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  </Grid>
+
+                  <Grid cols={2} gap="1.5rem" style={{ marginTop: '1.5rem' }}>
+                    <div>
+                      <Label>Launch Date</Label>
+                      <Input 
+                        type="date" 
+                        name="startDate" 
+                        value={formData.startDate} 
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>Expiration Date</Label>
+                      <Input 
+                        type="date" 
+                        name="endDate" 
+                        value={formData.endDate} 
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  </Grid>
+                </>
               )}
 
-              {/* STEP 4: Documents Upload */}
-              {currentStep === 4 && (
-                <div className="form-step-container">
-                  <h4 className="step-title">Verification Documents</h4>
-                  <p className="step-description">Upload required documents to verify your identity</p>
-
-                  <Row>
-                    <Col md={6} className="mb-4">
-                      <div className="document-card-3d required">
-                        <div className="document-header">
-                          <span className="document-icon">📄</span>
-                          <span className="document-name">Identity Proof</span>
-                          <span className="required-badge">Required</span>
-                        </div>
-                        <Form.Control
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => handleDocumentChange(e, 'identity')}
-                          className="document-input-3d"
-                        />
-                        <div className="document-status">
-                          {documents.identity ? (
-                            <span className="status-success">✓ {documents.identity.name}</span>
-                          ) : (
-                            <span className="status-pending">Pending upload</span>
-                          )}
-                        </div>
-                      </div>
-                    </Col>
-
-                    <Col md={6} className="mb-4">
-                      <div className="document-card-3d required">
-                        <div className="document-header">
-                          <span className="document-icon">🏠</span>
-                          <span className="document-name">Address Proof</span>
-                          <span className="required-badge">Required</span>
-                        </div>
-                        <Form.Control
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => handleDocumentChange(e, 'address')}
-                          className="document-input-3d"
-                        />
-                        <div className="document-status">
-                          {documents.address ? (
-                            <span className="status-success">✓ {documents.address.name}</span>
-                          ) : (
-                            <span className="status-pending">Pending upload</span>
-                          )}
-                        </div>
-                      </div>
-                    </Col>
-
-                    <Col md={6}>
-                      <div className="document-card-3d optional">
-                        <div className="document-header">
-                          <span className="document-icon">💰</span>
-                          <span className="document-name">Financial Statement</span>
-                          <span className="optional-badge">Optional</span>
-                        </div>
-                        <Form.Control
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => handleDocumentChange(e, 'financial')}
-                          className="document-input-3d"
-                        />
-                        <div className="document-status">
-                          {documents.financial ? (
-                            <span className="status-success">✓ {documents.financial.name}</span>
-                          ) : (
-                            <span className="status-pending">Not uploaded</span>
-                          )}
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  <div className="document-info-box">
-                    <p><strong>Document Requirements:</strong></p>
-                    <ul>
-                      <li>Supported formats: PDF, JPEG, PNG</li>
-                      <li>Maximum file size: 5MB per document</li>
-                      <li>All documents must be clear and readable</li>
-                      <li>Identity & Address proofs are mandatory</li>
-                    </ul>
+              {currentStep === 3 && (
+                <>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-1px' }}>Media Assets</h2>
+                  <p style={{ color: '#666', marginBottom: '2.5rem' }}>Upload your hero image and professional documents.</p>
+                  
+                  <div style={{ padding: '3rem', border: '2px dashed #eee', borderRadius: '16px', textAlign: 'center', marginBottom: '2rem' }}>
+                    <Upload size={32} style={{ color: '#0077b6', marginBottom: '1rem' }} />
+                    <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>
+                      {formData.image ? `✓ ${formData.image.name}` : 'Upload Campaign Cover Image'}
+                    </p>
+                    <input 
+                      type="file" 
+                      name="image" 
+                      accept="image/*" 
+                      onChange={handleChange} 
+                      style={{ marginTop: '1rem' }} 
+                      required
+                    />
                   </div>
-                </div>
+
+                  <Flex gap="1rem" style={{ padding: '1.5rem', background: '#f8f9fa', borderRadius: '12px' }}>
+                     <ShieldCheck size={20} style={{ color: '#2f855a' }} />
+                     <span style={{ fontSize: '0.85rem', color: '#666' }}>Your data is protected by StartupFund's enterprise security protocols.</span>
+                  </Flex>
+                </>
               )}
 
-              {/* Navigation Buttons */}
-              <div className="form-navigation-3d">
-                {currentStep > 1 && (
-                  <Button
-                    variant="outline-secondary"
-                    onClick={handlePrevStep}
-                    className="btn-nav-3d"
-                  >
-                    ← Previous
-                  </Button>
-                )}
-                {currentStep < 4 ? (
-                  <Button
-                    variant="primary"
-                    onClick={handleNextStep}
-                    className="btn-nav-3d"
-                  >
-                    Next →
+              <Flex gap="1rem" style={{ marginTop: '3rem' }}>
+                {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} style={{ flexGrow: 1 }}>Back</Button>}
+                {currentStep < 3 ? (
+                  <Button type="button" onClick={nextStep} style={{ flexGrow: 2 }}>
+                    Continue <ArrowRight size={18} style={{ marginLeft: 8 }} />
                   </Button>
                 ) : (
-                  <Button
-                    variant="success"
-                    type="submit"
-                    disabled={loading}
-                    className="btn-submit-3d"
-                  >
-                    {loading ? '🔄 Launching...' : '🚀 Launch Campaign'}
+                  <Button type="submit" disabled={loading} style={{ flexGrow: 2 }}>
+                    {loading ? 'Launching...' : 'Launch B2B Campaign'} <Rocket size={18} style={{ marginLeft: 8 }} />
                   </Button>
                 )}
-              </div>
-            </Form>
-          </Card.Body>
-        </Card>
-      </div>
-    </Container>
+              </Flex>
+            </form>
+          </Card>
+        </FormSection>
+      </Container>
+    </CreateWrapper>
   );
 };
 

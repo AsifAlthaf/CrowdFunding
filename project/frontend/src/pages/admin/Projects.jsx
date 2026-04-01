@@ -1,262 +1,214 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Badge, Button, Modal, Form, Container } from 'react-bootstrap';
-import { toast } from 'react-toastify';
-import { Eye, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import AdminLayout from '../../components/AdminLayout';
-import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Briefcase, 
+  Search, 
+  Filter, 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  ExternalLink,
+  ChevronRight,
+  MoreVertical,
+  ArrowLeft
+} from 'lucide-react';
+import { toast } from 'react-toastify';
+import { Button, Card, Container, Flex, Grid, Input } from '../../components/ui';
+import useAuthStore from '../../store/authStore';
 
+const AdminWrapper = styled.div`
+  padding: 4rem 0;
+  background: #fafafa;
+  min-height: calc(100vh - 80px);
+`;
+
+const TableWrapper = styled.div`
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+  margin-top: 2rem;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    padding: 1.25rem 2rem;
+    text-align: left;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    border-bottom: 2px solid #fafafa;
+  }
+
+  td {
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid #fafafa;
+    font-size: 0.95rem;
+  }
+
+  tr:last-child td { border-bottom: none; }
+`;
+
+const StatusBadge = styled.span`
+  padding: 0.4rem 0.8rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  ${props => props.status === 'Approved' ? `
+    background: #c6f6d5;
+    color: #22543d;
+  ` : props.status === 'Pending' ? `
+    background: #feebc8;
+    color: #744210;
+  ` : `
+    background: #fed7d7;
+    color: #742a2a;
+  `}
+`;
 
 const AdminProjects = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [reviewForm, setReviewForm] = useState({
-    status: '',
-    comments: ''
-  });
-  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchProjects();
+    fetchAdminProjects();
   }, []);
 
-  const fetchProjects = async () => {
+  const fetchAdminProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/projects', {
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('http://localhost:5000/api/admin/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      setProjects(response.data.projects); // Admin API returns { success: true, projects: [] }
-      setLoading(false);
+      const data = await response.json();
+      setProjects(data);
     } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to fetch projects');
+      toast.error('Failed to load campaigns');
+    } finally {
       setLoading(false);
     }
   };
 
-  // ... (handleReview remain the same)
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this project?')) {
-      return;
-    }
-
+  const handleStatusChange = async (projectId, action) => {
     try {
-      // Use admin route for deletion to be consistent, though public route also works for admins
-      await axios.delete(`http://localhost:5000/api/admin/projects/${id}`, {
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5000/api/admin/projects/${projectId}/${action}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      toast.success('Project deleted successfully');
-      fetchProjects(); // Refresh the list
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      toast.error('Failed to delete project');
-    }
-  };
-
-  // ... (handleReviewSubmit remain the same)
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedProject) return;
-
-    try {
-      const response = await axios.put(`http://localhost:5000/api/admin/projects/${selectedProject._id}`,
-        reviewForm,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
-        }
-      );
-
-      if (response.data.success) {
-        toast.success('Project review submitted successfully');
-        setShowReviewModal(false);
-        fetchProjects();
-      } else {
-        throw new Error(response.data.message || 'Failed to submit review');
+      if (response.ok) {
+        toast.success(`Campaign ${action === 'approve' ? 'approved' : 'rejected'}`);
+        fetchAdminProjects();
       }
     } catch (error) {
-      console.error('Error submitting review:', error);
-      toast.error('Failed to submit review');
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'pending':
-        return <Badge bg="warning">Pending</Badge>;
-      case 'approved':
-        return <Badge bg="success">Approved</Badge>;
-      case 'rejected':
-        return <Badge bg="danger">Rejected</Badge>;
-      default:
-        return <Badge bg="secondary">{status}</Badge>;
-    }
-  };
-
-  // Approve the project
-  const approveProject = async (id) => {
-    try {
-      const response = await axios.put(`http://localhost:5000/api/admin/projects/${id}`,
-        { status: 'approved' },
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
-        }
-      );
-
-      if (!response.data.success) {
-        throw new Error('Failed to approve project');
-      }
-
-      toast.success('Project approved successfully');
-      fetchProjects(); // Refresh the list
-    } catch (error) {
-      console.error('Error approving project:', error);
-      toast.error('Failed to approve project');
+      toast.error('Operation failed');
     }
   };
 
   return (
-    <AdminLayout>
-      <Container fluid className="py-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">Projects</h2>
-        </div>
+    <AdminWrapper>
+      <Container>
+        <header style={{ marginBottom: '3rem' }}>
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')} style={{ marginBottom: '2rem' }}>
+            <ArrowLeft size={16} style={{ marginRight: 8 }} /> Back to Overview
+          </Button>
+          <Flex justify="space-between">
+            <div>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '0.5rem' }}>Campaign Moderation</h1>
+              <p style={{ color: '#666' }}>Verify and approve new B2B SaaS startup ventures.</p>
+            </div>
+          </Flex>
+        </header>
 
-        <Table responsive hover className="bg-white shadow-sm rounded">
-          <thead>
-            <tr>
-              <th>Project Name</th>
-              <th>Creator</th>
-              <th>Target Amount</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="5" className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : projects.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="text-center py-4">
-                  No projects found
-                </td>
-              </tr>
-            ) : (
-              projects.map((project) => (
-                <tr key={project._id}>
-                  <td>{project.title}</td>
-                  <td>{project.creator?.name || 'Unknown'}</td>
-                  <td>₹{project.targetAmount?.toLocaleString() || 0}</td>
-                  <td>{getStatusBadge(project.status)}</td>
-                  <td>
-                    <div className="d-flex gap-2">
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm"
-                        href={`/projects/${project._id}`}
-                      >
-                        <Eye size={16} />
-                      </Button>
-                      <Button 
-                        variant="outline-danger" 
-                        size="sm"
-                        onClick={() => handleDelete(project._id)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                      {/* Add Approve Button */}
-                      {project.status !== 'approved' && (
-                        <Button 
-                          variant="outline-success" 
-                          size="sm"
-                          onClick={() => approveProject(project._id)}
-                        >
-                          <CheckCircle size={16} /> Approve
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
+        <Card style={{ padding: '2rem' }}>
+           <Flex gap="1rem">
+              <div style={{ position: 'relative', flexGrow: 1 }}>
+                 <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
+                 <Input 
+                   style={{ paddingLeft: '3.5rem' }} 
+                   placeholder="Search Campaign Title, Creator or Category..." 
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                 />
+              </div>
+              <Button variant="outline" style={{ display: 'flex', gap: 8 }}><Filter size={18} /> Filters</Button>
+           </Flex>
+        </Card>
 
-        {/* Review Modal */}
-        <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>Review Project</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {selectedProject && (
-              <>
-                <div className="mb-4">
-                  <h5>{selectedProject.title}</h5>
-                  <p className="text-muted">{selectedProject.description}</p>
-                </div>
-
-                <Form onSubmit={handleReviewSubmit}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Status</Form.Label>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant={reviewForm.status === 'approved' ? 'success' : 'outline-success'}
-                        onClick={() => setReviewForm({ ...reviewForm, status: 'approved' })}
-                        type="button"
-                      >
-                        <CheckCircle size={18} className="me-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant={reviewForm.status === 'rejected' ? 'danger' : 'outline-danger'}
-                        onClick={() => setReviewForm({ ...reviewForm, status: 'rejected' })}
-                        type="button"
-                      >
-                        <XCircle size={18} className="me-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  </Form.Group>
-
-                  <Form.Group className="mb-3">
-                    <Form.Label>Review Comments</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={4}
-                      value={reviewForm.comments}
-                      onChange={(e) => setReviewForm({ ...reviewForm, comments: e.target.value })}
-                      placeholder="Add your review comments here..."
-                      required
-                    />
-                  </Form.Group>
-
-                  <div className="d-flex justify-content-end gap-2">
-                    <Button variant="secondary" onClick={() => setShowReviewModal(false)}>
-                      Cancel
-                    </Button>
-                    <Button variant="primary" type="submit">
-                      Submit Review
-                    </Button>
-                  </div>
-                </Form>
-              </>
-            )}
-          </Modal.Body>
-        </Modal>
+        <TableWrapper>
+           <table>
+              <thead>
+                 <tr>
+                    <th>CAMPAIGN VISION</th>
+                    <th>CREATOR</th>
+                    <th>TARGET</th>
+                    <th>STATUS</th>
+                    <th>OPERATIONS</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 {projects.filter(p => 
+                   p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                   p.creator?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+                 ).map(project => (
+                   <tr key={project._id}>
+                      <td style={{ maxWidth: '300px' }}>
+                         <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{project.title}</h4>
+                         <p style={{ fontSize: '0.8rem', color: '#888' }}>{project.category} • {new Date(project.createdAt).toLocaleDateString()}</p>
+                      </td>
+                      <td>
+                         <Flex gap="0.75rem">
+                            <div style={{ width: 32, height: 32, borderRadius: '8px', background: '#eee' }} />
+                            <div>
+                               <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{project.creator?.name}</p>
+                               <p style={{ fontSize: '0.75rem', color: '#888' }}>{project.creator?.role}</p>
+                            </div>
+                         </Flex>
+                      </td>
+                      <td>
+                         <p style={{ fontWeight: 700 }}>₹{project.targetAmount.toLocaleString()}</p>
+                         <p style={{ fontSize: '0.75rem', color: '#888' }}>{project.equity}% Equity</p>
+                      </td>
+                      <td>
+                         <StatusBadge status={project.status}>{project.status}</StatusBadge>
+                      </td>
+                      <td>
+                         <Flex gap="0.5rem">
+                            {project.status === 'Pending' && (
+                               <>
+                                 <Button variant="outline" size="sm" style={{ color: '#2f855a', borderColor: '#c6f6d5' }} onClick={() => handleStatusChange(project._id, 'approve')}>
+                                    <CheckCircle2 size={16} />
+                                 </Button>
+                                 <Button variant="outline" size="sm" style={{ color: '#e53e3e', borderColor: '#fed7d7' }} onClick={() => handleStatusChange(project._id, 'reject')}>
+                                    <XCircle size={16} />
+                                 </Button>
+                               </>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project._id}`)}>
+                               <ExternalLink size={16} />
+                            </Button>
+                         </Flex>
+                      </td>
+                   </tr>
+                 ))}
+              </tbody>
+           </table>
+           {projects.length === 0 && <div style={{ padding: '6rem', textAlign: 'center', color: '#999' }}>No campaigns currently awaiting moderation.</div>}
+        </TableWrapper>
       </Container>
-    </AdminLayout>
+    </AdminWrapper>
   );
 };
 

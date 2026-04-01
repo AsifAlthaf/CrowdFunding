@@ -11,10 +11,17 @@ import adminRoutes from './routes/admin.routes.js';
 import userRoutes from './routes/user.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import investmentRoutes from './routes/investment.routes.js';
+import reviewRoutes from './routes/review.routes.js';
+import messageRoutes from './routes/message.routes.js';
+import complaintRoutes from './routes/complaint.routes.js';
+import companyRoutes from './routes/company.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import paymentRoutes from './routes/payment.routes.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { protect } from './middleware/auth.middleware.js';
+import cron from 'node-cron';
+import { lockExpiredProjects } from './controllers/project.controller.js';
+
 // Initialize dotenv configuration first
 dotenv.config();
 
@@ -34,7 +41,10 @@ const startServer = async () => {
     });
 
     // Middleware
-    app.use(helmet());
+    app.use(helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: false, // Disable CSP for local development stability
+    }));
 
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
     app.use(cors({
@@ -89,6 +99,13 @@ const startServer = async () => {
     // Make io accessible to routes
     app.set('io', io);
 
+    // Schedule project locking (every hour)
+    cron.schedule('0 * * * *', () => {
+      console.log('Running cron job for project locking...');
+      lockExpiredProjects();
+    });
+
+
     // Health check route
     app.get('/health', (req, res) => {
       res.status(200).json({ 
@@ -111,6 +128,10 @@ const startServer = async () => {
     app.use('/api/admin', adminRoutes);
     app.use('/api/investments', investmentRoutes);
     app.use('/api/payment', paymentRoutes);
+    app.use('/api/reviews', reviewRoutes);
+    app.use('/api/messages', messageRoutes);
+    app.use('/api/complaints', complaintRoutes);
+    app.use('/api/companies', companyRoutes);
 
     // Error Handler
     app.use(errorHandler);
@@ -120,28 +141,14 @@ const startServer = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB Connected Successfully');
 
-    // Try to start the server
+    // Start the server
     const PORT = process.env.PORT || 5000;
     
-    // Check if port is in use
-    const server = httpServer.listen(PORT);
-    
-    server.on('error', (error) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Trying port ${PORT + 1}`);
-        server.listen(PORT + 1);
-      } else {
-        console.error('Server error:', error);
-        process.exit(1);
-      }
-    });
-
-    server.on('listening', () => {
-      const address = server.address();
-      console.log(`Server is running on port ${address.port}`);
+    httpServer.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
       console.log(`WebSocket server is ready`);
       console.log(`Frontend URL: http://localhost:5173`);
-      console.log(`API URL: http://localhost:${address.port}`);
+      console.log(`API URL: http://localhost:${PORT}`);
     });
 
   } catch (error) {

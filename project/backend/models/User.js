@@ -20,8 +20,27 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['individual', 'institutional', 'angel', 'admin'],
-    default: 'individual'
+    enum: ['startup', 'investor', 'mnc', 'employee', 'admin'],
+    default: 'startup'
+  },
+  companyName: {
+    type: String,
+    trim: true
+  },
+  companyWebsite: {
+    type: String,
+    trim: true
+  },
+  services: [{
+    type: String
+  }],
+  stars: {
+    type: Number,
+    default: 0
+  },
+  reviewsCount: {
+    type: Number,
+    default: 0
   },
   profileImage: {
     type: String
@@ -40,6 +59,21 @@ const userSchema = new mongoose.Schema({
   investments: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Investment'
+  }],
+  personalPortfolio: [{
+    title: String,
+    description: String,
+    link: String,
+    image: String,
+    date: Date
+  }],
+  partnerHistory: [{
+    name: String,
+    logo: String,
+    profileId: {
+       type: mongoose.Schema.Types.ObjectId,
+       ref: 'User'
+    }
   }],
   createdAt: {
     type: Date,

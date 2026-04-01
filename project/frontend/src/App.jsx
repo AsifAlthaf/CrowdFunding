@@ -1,14 +1,11 @@
 import React, { useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { ThemeProvider } from 'styled-components';
 import { ToastContainer } from "react-toastify";
+import { theme, GlobalStyle } from "./theme/theme";
+import Navbar from "./components/ui/Navbar";
+import Footer from "./components/ui/Footer";
 import "react-toastify/dist/ReactToastify.css";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 // Pages
 import Home from "./pages/Home";
@@ -20,20 +17,19 @@ import Users from "./pages/admin/Users";
 import Analytics from "./pages/admin/Analytics";
 import DocumentVerification from "./pages/admin/DocumentVerification";
 import ProjectDetails from "./pages/ProjectDetails";
-import UserDashboard from "./pages/UserDashboard";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Campaigns from "./pages/Campaigns";
 import About from "./pages/About";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import ProjectView from "./pages/ProjectView";
+import CompanyProfile from "./pages/CompanyProfile";
+import PrivateSpace from "./pages/PrivateSpace";
+import AdminComplaints from "./pages/admin/Complaints";
 
 // Components
-import AppNavbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
-import Footer from "./components/Footer";
 import Register from "./components/Register";
 import CreateProject from "./components/CreateProject";
 import EditProject from "./components/EditProject";
@@ -43,24 +39,23 @@ import useAuthStore from "./store/authStore";
 
 const AppContent = () => {
   const location = useLocation();
-  const { checkAuth, isAuthenticated, isLoading, isAdmin } = useAuthStore();
-  const isAdminLoginPage = location.pathname === "/admin/login";
+  const { checkAuth, isAuthenticated, isLoading } = useAuthStore();
   const isAdminPage = location.pathname.startsWith("/admin/");
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 600 }}>Loading StartupFund...</div>;
   }
 
   return (
-    <div className="min-vh-100 d-flex flex-column">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Show navbar on all pages except admin pages */}
-      {!isAdminPage && <AppNavbar />}
+      {!isAdminPage && <Navbar />}
 
-      <main className="flex-grow-1">
+      <main style={{ flexGrow: 1 }}>
         <Routes>
           {/* Public routes */}
           <Route
@@ -90,6 +85,23 @@ const AppContent = () => {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/company/:id" element={<CompanyProfile />} />
+          <Route
+            path="/messages"
+            element={
+              <PrivateRoute>
+                <PrivateSpace />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/messages/:id"
+            element={
+              <PrivateRoute>
+                <PrivateSpace />
+              </PrivateRoute>
+            }
+          />
 
           {/* Protected User Routes */}
           <Route
@@ -120,7 +132,7 @@ const AppContent = () => {
             path="/projects/:id"
             element={
               <PrivateRoute>
-                <ProjectView />
+                <ProjectDetails />
               </PrivateRoute>
             }
           />
@@ -174,6 +186,14 @@ const AppContent = () => {
               </AdminRoute>
             }
           />
+          <Route
+            path="/admin/complaints"
+            element={
+              <AdminRoute>
+                <AdminComplaints />
+              </AdminRoute>
+            }
+          />
 
           {/* Root Route */}
           <Route path="/" element={<Home />} />
@@ -190,9 +210,12 @@ const AppContent = () => {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <ThemeProvider theme={theme}>
+      <GlobalStyle />
+      <Router>
+        <AppContent />
+      </Router>
+    </ThemeProvider>
   );
 }
 

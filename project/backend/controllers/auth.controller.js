@@ -12,7 +12,7 @@ const generateToken = (id) => {
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, companyName, companyWebsite, services } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -33,7 +33,10 @@ export const register = async (req, res) => {
       name,
       email,
       password,
-      role: role || 'individual'
+      role: role || 'startup',
+      companyName,
+      companyWebsite,
+      services
     });
 
     const token = generateToken(user._id);
@@ -67,7 +70,7 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -135,12 +138,17 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, bio, profileImage } = req.body;
+    const { name, bio, profileImage, companyName, companyWebsite, services } = req.body;
 
     const updateData = {};
     if (name) updateData.name = name;
     if (bio) updateData.bio = bio;
     if (profileImage) updateData.profileImage = profileImage;
+    if (companyName) updateData.companyName = companyName;
+    if (companyWebsite) updateData.companyWebsite = companyWebsite;
+    if (services) updateData.services = services;
+    if (req.body.personalPortfolio) updateData.personalPortfolio = req.body.personalPortfolio;
+    if (req.body.partnerHistory) updateData.partnerHistory = req.body.partnerHistory;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,

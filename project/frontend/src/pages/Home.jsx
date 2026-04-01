@@ -1,9 +1,81 @@
-// Home.jsx
 import React from 'react';
-import { Container, Row, Col, Button } from 'react-bootstrap';
-import { ArrowRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { ArrowRight, Zap, Target, Users, Shield, Briefcase, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button, Container, Flex, Grid, Card } from '../components/ui';
 import useAuthStore from '../store/authStore';
+
+const HeroSection = styled.section`
+  padding: 8rem 0;
+  text-align: center;
+  background: radial-gradient(circle at top, #0077b60a 0%, #ffffff 100%);
+`;
+
+const Badge = styled.div`
+  display: inline-flex;
+  padding: 0.5rem 1rem;
+  background: ${props => props.theme.colors.primary}15;
+  color: ${props => props.theme.colors.primary};
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+`;
+
+const Title = styled(motion.h1)`
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -2px;
+  margin-bottom: 1.5rem;
+  color: ${props => props.theme.colors.text};
+
+  span {
+    color: ${props => props.theme.colors.primary};
+  }
+
+  @media (max-width: 768px) {
+    font-size: 2.5rem;
+  }
+`;
+
+const Subtitle = styled(motion.p)`
+  font-size: 1.25rem;
+  color: #666;
+  max-width: 600px;
+  margin: 0 auto 3rem;
+  line-height: 1.6;
+`;
+
+const FeatureIcon = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: ${props => props.theme.colors.primary}10;
+  color: ${props => props.theme.colors.primary};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+`;
+
+const FeatureTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+`;
+
+const FeatureText = styled.p`
+  color: #666;
+  line-height: 1.6;
+  font-size: 0.95rem;
+`;
+
+const SectionHeader = styled.div`
+  text-align: center;
+  margin-bottom: 4rem;
+`;
 
 const Home = () => {
   const navigate = useNavigate();
@@ -19,111 +91,87 @@ const Home = () => {
 
   return (
     <>
-      <section className="hero-section d-flex align-items-center">
+      <HeroSection>
         <Container>
-          <Row className="justify-content-center text-center">
-            <Col md={8}>
-              <h1 className="display-4 mb-4">Fund the Next Big Thing</h1>
-              <p className="lead mb-4">
-                Join our platform to invest in promising startups and be part of the next success story.
-              </p>
-              <Button 
-                variant="primary" 
-                size="lg" 
-                className="d-inline-flex align-items-center"
-                onClick={handleGetStarted}
-              >
-                {user ? 'Go to Dashboard' : 'Get Started'} <ArrowRight className="ms-2" size={20} />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge>Trusted by 10,000+ Startups & Investors</Badge>
+            <Title>
+              Connecting the <span>Startup Ecosystem</span> <br /> for B2B Success
+            </Title>
+            <Subtitle>
+              The premium B2B SaaS platform for startups, single investors, MNCs, and employees. 
+              Find services, post jobs, and fund the next big thing.
+            </Subtitle>
+            <Flex justify="center" gap="1rem">
+              <Button size="lg" onClick={handleGetStarted}>
+                {user ? 'Go to Dashboard' : 'Join the Network'} <ArrowRight size={18} style={{ marginLeft: 8 }} />
               </Button>
-            </Col>
-          </Row>
+              <Button variant="outline" size="lg" onClick={() => navigate('/campaigns')}>
+                Explore Campaigns
+              </Button>
+            </Flex>
+          </motion.div>
+        </Container>
+      </HeroSection>
+
+      <section style={{ padding: '6rem 0' }}>
+        <Container>
+          <SectionHeader>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem' }}>One Platform, Endless Possibilities</h2>
+            <p style={{ color: '#666', fontSize: '1.1rem' }}>Everything you need to scale your startup or portfolio.</p>
+          </SectionHeader>
+          <Grid cols={3}>
+            <Card>
+              <FeatureIcon><Zap size={24} /></FeatureIcon>
+              <FeatureTitle>Startup Funding</FeatureTitle>
+              <FeatureText>Launch campaigns, attract investors, and get the capital you need to scale your vision.</FeatureText>
+            </Card>
+            <Card>
+              <FeatureIcon><Briefcase size={24} /></FeatureIcon>
+              <FeatureTitle>B2B Services</FeatureTitle>
+              <FeatureText>Connect with MNCs and startups to provide or find specialized services in a secure marketplace.</FeatureText>
+            </Card>
+            <Card>
+              <FeatureIcon><Users size={24} /></FeatureIcon>
+              <FeatureTitle>Talent Network</FeatureTitle>
+              <FeatureText>Find high-impact roles or hire the best employees from a pool of vetted professionals.</FeatureText>
+            </Card>
+            <Card>
+              <FeatureIcon><Target size={24} /></FeatureIcon>
+              <FeatureTitle>Smart Investing</FeatureTitle>
+              <FeatureText>Individual investors can discover high-potential startups with detailed metrics and reviews.</FeatureText>
+            </Card>
+            <Card>
+              <FeatureIcon><Shield size={24} /></FeatureIcon>
+              <FeatureTitle>Secure Private Space</FeatureTitle>
+              <FeatureText>Exclusive communication channels and document sharing protected by enterprise-grade security.</FeatureText>
+            </Card>
+            <Card>
+              <FeatureIcon><Globe size={24} /></FeatureIcon>
+              <FeatureTitle>Global Connection</FeatureTitle>
+              <FeatureText>Break geographical barriers and connect with partners from around the world.</FeatureText>
+            </Card>
+          </Grid>
         </Container>
       </section>
 
-      <section className="py-5">
+      <section style={{ padding: '6rem 0', background: '#fafafa' }}>
         <Container>
-          <Row className="justify-content-center text-center mb-5">
-            <Col md={8}>
-              <h2>Why Choose StartupFund?</h2>
-              <p className="lead text-muted">
-                We make startup investing accessible, transparent, and rewarding.
-              </p>
-            </Col>
-          </Row>
-          <Row>
-            <Col md={4} className="mb-4">
-              <div className="text-center">
-                <div className="mb-3">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                    <line x1="9" y1="9" x2="9.01" y2="9" />
-                    <line x1="15" y1="9" x2="15.01" y2="9" />
-                  </svg>
-                </div>
-                <h3 className="h4">Vetted Startups</h3>
-                <p className="text-muted">
-                  We carefully screen each startup to ensure quality investment opportunities.
-                </p>
-              </div>
-            </Col>
-            <Col md={4} className="mb-4">
-              <div className="text-center">
-                <div className="mb-3">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <h3 className="h4">Low Minimums</h3>
-                <p className="text-muted">
-                  Start investing with as little as $100 and build your portfolio.
-                </p>
-              </div>
-            </Col>
-            <Col md={4} className="mb-4">
-              <div className="text-center">
-                <div className="mb-3">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                    <line x1="12" y1="16" x2="12" y2="8" />
-                  </svg>
-                </div>
-                <h3 className="h4">Easy Management</h3>
-                <p className="text-muted">
-                  Track your investments and manage your portfolio with our intuitive dashboard.
-                </p>
-              </div>
-            </Col>
-          </Row>
-        </Container>
-      </section>
-
-      <section className="bg-light py-5">
-        <Container>
-          <Row className="align-items-center">
-            <Col md={6} className="mb-4 mb-md-0">
-              <img
-                src="https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&q=80&w=2070"
-                alt="Team collaboration"
-                className="img-fluid rounded shadow"
-              />
-            </Col>
-            <Col md={6}>
-              <h2>Ready to Start Investing?</h2>
-              <p className="lead mb-4">
-                Join thousands of investors who have already discovered promising startup opportunities on our platform.
-              </p>
-              <Button 
-                variant="primary" 
+          <Card style={{ background: '#0077b6', color: '#fff', textAlign: 'center', padding: '4rem' }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Ready to transform your business?</h2>
+            <p style={{ fontSize: '1.2rem', marginBottom: '2.5rem', opacity: 0.9 }}>Join StartupFund today and start connecting with the leaders of tomorrow.</p>
+            <Button 
+                style={{ background: '#fff', color: '#0077b6' }} 
                 size="lg" 
-                className="d-inline-flex align-items-center"
                 onClick={handleGetStarted}
-              >
-                {user ? 'Go to Dashboard' : 'Get Started'} <ArrowRight className="ms-2" size={20} />
-              </Button>
-            </Col>
-          </Row>
+            >
+              Get Started for Free
+            </Button>
+          </Card>
         </Container>
       </section>
     </>

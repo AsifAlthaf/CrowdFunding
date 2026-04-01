@@ -1,26 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Button, Spinner, Badge, Modal } from 'react-bootstrap';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  Users as UsersIcon, 
+  Search, 
+  Filter, 
+  Trash2, 
+  ShieldCheck, 
+  ShieldAlert, 
+  ArrowLeft,
+  Settings,
+  MoreVertical,
+  Mail,
+  UserCheck
+} from 'lucide-react';
 import { toast } from 'react-toastify';
-import api from '../../services/api';
-import Footer from '../../components/Footer';
+import { Button, Card, Container, Flex, Grid, Input } from '../../components/ui';
+import useAuthStore from '../../store/authStore';
 
-const Users = () => {
+const AdminWrapper = styled.div`
+  padding: 4rem 0;
+  background: #fafafa;
+  min-height: calc(100vh - 80px);
+`;
+
+const TableWrapper = styled.div`
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+  margin-top: 2rem;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    padding: 1.25rem 2rem;
+    text-align: left;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    border-bottom: 2px solid #fafafa;
+  }
+
+  td {
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid #fafafa;
+    font-size: 0.95rem;
+  }
+
+  tr:last-child td { border-bottom: none; }
+`;
+
+const RoleBadge = styled.span`
+  padding: 0.35rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  ${props => props.role === 'startup' ? `
+    background: #0077b615;
+    color: #0077b6;
+  ` : props.role === 'investor' ? `
+    background: #c6f6d5;
+    color: #22543d;
+  ` : props.role === 'mnc' ? `
+    background: #faf5ff;
+    color: #44337a;
+  ` : `
+    background: #f7fafc;
+    color: #4a5568;
+  `}
+`;
+
+const AdminUsers = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    individual: 0,
-    institutional: 0,
-    angel: 0,
-    active: 0,
-    inactive: 0
-  });
-
-  const [showModal, setShowModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-
-  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -28,233 +92,131 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/admin/users');
-      const fetchedUsers = response.data.users || []; // Backend returns { success: true, users: [] }
-      setUsers(fetchedUsers);
-
-      const newStats = {
-        total: fetchedUsers.length,
-        individual: fetchedUsers.filter(u => u.role === 'individual').length,
-        institutional: fetchedUsers.filter(u => u.role === 'institutional').length,
-        angel: fetchedUsers.filter(u => u.role === 'angel').length,
-        active: fetchedUsers.filter(u => u.isVerified).length,
-        inactive: fetchedUsers.filter(u => !u.isVerified).length
-      };
-      setStats(newStats);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('http://localhost:5000/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setUsers(data);
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users');
+      toast.error('Failed to load user ecosystem');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewUser = (user) => {
-    setSelectedUser(user);
-    setShowModal(true);
-  };
-
-  const handleDeactivateUser = async (userId) => {
+  const handleRoleChange = async (userId, newRole) => {
     try {
-      await api.put(`/admin/users/${userId}/status`, {
-        isVerified: !users.find(u => u._id === userId).isVerified
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/role`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: newRole })
       });
-      toast.success('User status updated successfully');
-      fetchUsers();
+      if (response.ok) {
+        toast.success('User role updated');
+        fetchUsers();
+      }
     } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Failed to update user status');
+      toast.error('Update failed');
     }
   };
-
-  const getBadgeVariant = (type) => {
-    switch (type) {
-      case 'individual': return 'primary';
-      case 'institutional': return 'success';
-      case 'angel': return 'warning';
-      default: return 'secondary';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Container className="py-5 text-center">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </Container>
-    );
-  }
 
   return (
-    <div className="min-vh-100 d-flex flex-column">
-      <div className="flex-grow-1">
-        <Container className="py-5">
-          {/* 👇 Back to Dashboard Button */}
-          <div className="mb-4 d-flex justify-content-between align-items-center">
-            <h1
-              className="mb-0"
-              style={{ color: "#0d6efd", fontWeight: "bold" }}
-            >
-              StartupFund
-            </h1>
-            <Button
-              variant="outline-secondary"
-              onClick={() => navigate("/admin/dashboard")}
-            >
-              ← Back to Dashboard
-            </Button>
-          </div>
-
-          <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">User Management</h2>
-        </div>
-
-          {/* Stats Cards */}
-          <Row className="mb-4">
-            {/* ... all Col stats remain unchanged ... */}
-            {[
-              "total",
-              "individual",
-              "institutional",
-              "angel",
-              "active",
-              "inactive",
-            ].map((key, index) => (
-              <Col md={4} lg={2} className="mb-3" key={index}>
-                <Card className="h-100 border-0 shadow-sm">
-                  <Card.Body className="text-center">
-                    <h3 className="mb-2">{stats[key]}</h3>
-                    <Card.Text className="text-muted">
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </Card.Text>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-
-          {/* Users Table */}
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Table responsive hover className="align-middle">
-                <thead className="bg-light">
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Joined Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user._id}>
-                      <td>{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <Badge
-                          bg={getBadgeVariant(user.role)}
-                          className="px-3 py-2"
-                        >
-                          {user.role}
-                        </Badge>
-                      </td>
-                      <td>
-                        <Badge
-                          bg={user.isVerified ? "success" : "danger"}
-                          className="px-3 py-2"
-                        >
-                          {user.isVerified ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleViewUser(user)}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant={
-                            user.isVerified
-                              ? "outline-danger"
-                              : "outline-success"
-                          }
-                          size="sm"
-                          onClick={() => handleDeactivateUser(user._id)}
-                        >
-                          {user.isVerified ? "Deactivate" : "Activate"}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Container>
-      </div>
-
-      <Footer />
-
-      {/* User Details Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>User Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedUser && (
-            <Row>
-              <Col md={6}>
-                <p>
-                  <strong>Name:</strong> {selectedUser.name}
-                </p>
-                <p>
-                  <strong>Email:</strong> {selectedUser.email}
-                </p>
-                <p>
-                  <strong>Role:</strong> {selectedUser.role}
-                </p>
-                <p>
-                  <strong>Status:</strong>{" "}
-                  {selectedUser.isVerified ? "Active" : "Inactive"}
-                </p>
-              </Col>
-              <Col md={6}>
-                <p>
-                  <strong>Joined Date:</strong>{" "}
-                  {new Date(selectedUser.createdAt).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>Projects Created:</strong>{" "}
-                  {selectedUser.createdProjects?.length || 0}
-                </p>
-                <p>
-                  <strong>Investments Made:</strong>{" "}
-                  {selectedUser.investments?.length || 0}
-                </p>
-                {selectedUser.bio && (
-                  <p>
-                    <strong>Bio:</strong> {selectedUser.bio}
-                  </p>
-                )}
-              </Col>
-            </Row>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Close
+    <AdminWrapper>
+      <Container>
+        <header style={{ marginBottom: '3rem' }}>
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')} style={{ marginBottom: '2rem' }}>
+             <ArrowLeft size={16} style={{ marginRight: 8 }} /> Back to Overview
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+          <Flex justify="space-between">
+            <div>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '0.5rem' }}>Ecosystem Management</h1>
+              <p style={{ color: '#666' }}>Moderating professional accounts, startups, and enterprise entities.</p>
+            </div>
+          </Flex>
+        </header>
+
+        <Card style={{ padding: '2rem' }}>
+           <Flex gap="1rem">
+              <div style={{ position: 'relative', flexGrow: 1 }}>
+                 <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
+                 <Input 
+                   style={{ paddingLeft: '3.5rem' }} 
+                   placeholder="Refine by name, email, company or role..." 
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                 />
+              </div>
+              <Button variant="outline" style={{ display: 'flex', gap: 8 }}><Filter size={18} /> Deep Search</Button>
+           </Flex>
+        </Card>
+
+        <TableWrapper>
+           <table>
+              <thead>
+                 <tr>
+                    <th>PROFESSIONAL ENTITY</th>
+                    <th>ACCOUNT TYPE</th>
+                    <th>COMMUNICATIONS</th>
+                    <th>ONBOARDED</th>
+                    <th>ACTIONS</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 {users.filter(u => 
+                   u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                   u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   u.companyName?.toLowerCase().includes(searchTerm.toLowerCase())
+                 ).map(user => (
+                   <tr key={user._id}>
+                      <td style={{ maxWidth: '300px' }}>
+                         <Flex gap="1rem">
+                             <div style={{ width: 40, height: 40, borderRadius: '12px', background: '#0077b615', color: '#0077b6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                                {user.name.charAt(0)}
+                             </div>
+                             <div>
+                                <h4 style={{ fontWeight: 700, marginBottom: '0.15rem' }}>{user.name}</h4>
+                                <p style={{ fontSize: '0.8rem', color: '#888' }}>{user.companyName || 'Individual Professional'}</p>
+                             </div>
+                         </Flex>
+                      </td>
+                      <td>
+                         <RoleBadge role={user.role}>{user.role}</RoleBadge>
+                      </td>
+                      <td>
+                         <Flex gap="0.5rem" style={{ color: '#0077b6', fontWeight: 600, fontSize: '0.9rem' }}>
+                            <Mail size={16} /> Direct Message
+                         </Flex>
+                      </td>
+                      <td>
+                         <p style={{ fontSize: '0.9rem', color: '#666' }}>{new Date(user.createdAt).toLocaleDateString()}</p>
+                      </td>
+                      <td>
+                         <Flex gap="0.5rem">
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/company/${user._id}`)}>
+                               <UserCheck size={16} />
+                            </Button>
+                            <Button variant="outline" size="sm" style={{ color: '#e53e3e', borderColor: '#fed7d7' }}>
+                               <ShieldAlert size={16} /> 
+                            </Button>
+                            <Button variant="outline" size="sm">
+                               <Settings size={16} />
+                            </Button>
+                         </Flex>
+                      </td>
+                   </tr>
+                 ))}
+                 {users.length === 0 && <div style={{ padding: '6rem', textAlign: 'center', color: '#999' }}>No users found in the ecosystem.</div>}
+              </tbody>
+           </table>
+        </TableWrapper>
+      </Container>
+    </AdminWrapper>
   );
 };
 
-export default Users;
+export default AdminUsers;

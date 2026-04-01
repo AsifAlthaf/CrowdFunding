@@ -1,51 +1,136 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
-import useAuthStore from '../store/authStore';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { 
+  User, 
+  Mail, 
+  Lock, 
+  Building2, 
+  Globe, 
+  ShieldCheck, 
+  Save,
+  Briefcase,
+  Plus,
+  Trash2,
+  ExternalLink,
+  History
+} from 'lucide-react';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import { Button, Card, Container, Flex, Grid, Input } from '../components/ui';
+import useAuthStore from '../store/authStore';
+import { userAPI, b2bAPI } from '../services/api';
+
+const ProfileWrapper = styled.div`
+  padding: 4rem 0;
+  background: #fafafa;
+  min-height: calc(100vh - 80px);
+`;
+
+const ProfileCard = styled(Card)`
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #444;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 2.5rem 0 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
 
 const Profile = () => {
   const { user, updateUser } = useAuthStore();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    email: user?.email || '',
+    companyName: user?.companyName || '',
+    companyWebsite: user?.companyWebsite || '',
+    bio: user?.bio || '',
+    logo: '',
+    slogan: '',
+    portfolio: [],
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
+  const [companyData, setCompanyData] = useState(null);
+
+  React.useEffect(() => {
+    fetchCompanyData();
+  }, []);
+
+  const fetchCompanyData = async () => {
+    try {
+      const res = await b2bAPI.getCompany(user.id);
+      setCompanyData(res.data);
+      setFormData(prev => ({
+        ...prev,
+        logo: res.data.branding?.logo || '',
+        slogan: res.data.branding?.slogan || '',
+        portfolio: res.data.portfolio || []
+      }));
+    } catch (error) {
+      console.error('Error fetching company data:', error);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setLoading(true);
+
     try {
-      // Validate passwords if trying to change password
+      // Validate passwords if changing
       if (formData.newPassword) {
-        if (!formData.currentPassword) {
-          toast.error('Please enter your current password');
-          return;
-        }
         if (formData.newPassword !== formData.confirmPassword) {
           toast.error('New passwords do not match');
+          setLoading(false);
           return;
         }
       }
 
-      // Prepare update data
       const updateData = {
-        name: formData.name
+        name: formData.name,
+        companyName: formData.companyName,
+        companyWebsite: formData.companyWebsite,
+        bio: formData.bio
       };
 
-      // Only include password fields if trying to change password
       if (formData.newPassword) {
         updateData.currentPassword = formData.currentPassword;
         updateData.password = formData.newPassword;
       }
 
-      // Make API call to update profile
-      const response = await axios.put('http://localhost:5000/api/auth/profile', updateData);
+      const response = await userAPI.updateProfile(updateData);
       
-      // Update local user state
-      updateUser(response.data);
+      // Update Company Data (B2B SaaS specific)
+      await b2bAPI.updateCompany('', {
+        branding: {
+          logo: formData.logo,
+          slogan: formData.slogan
+        },
+        portfolio: formData.portfolio
+      });
+
+      updateUser(response.data.user);
+      toast.success('Professional journey and profile updated!');
       
       // Clear password fields
       setFormData(prev => ({
@@ -54,85 +139,159 @@ const Profile = () => {
         newPassword: '',
         confirmPassword: ''
       }));
-
-      toast.success('Profile updated successfully');
+      fetchCompanyData();
     } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.response?.data?.message || 'Update failed');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const addPortfolioItem = () => {
+    setFormData({
+      ...formData,
+      portfolio: [...formData.portfolio, { title: '', description: '', link: '', image: '' }]
+    });
+  };
+
+  const removePortfolioItem = (index) => {
+    const newPortfolio = formData.portfolio.filter((_, i) => i !== index);
+    setFormData({ ...formData, portfolio: newPortfolio });
+  };
+
+  const updatePortfolioItem = (index, field, value) => {
+    const newPortfolio = [...formData.portfolio];
+    newPortfolio[index] = { ...newPortfolio[index], [field]: value };
+    setFormData({ ...formData, portfolio: newPortfolio });
+  };
+
   return (
-    <Container className="py-5">
-      <Row className="justify-content-center">
-        <Col md={8}>
-          <Card className="shadow-sm">
-            <Card.Body className="p-4">
-              <h2 className="mb-4">Profile Settings</h2>
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </Form.Group>
+    <ProfileWrapper>
+      <Container>
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4 }}
+        >
+          <ProfileCard>
+            <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
+               <div style={{ width: 80, height: 80, borderRadius: '24px', background: '#0077b615', color: '#0077b6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 800, margin: '0 auto 1.5rem' }}>
+                  {user?.name.charAt(0)}
+               </div>
+               <h1 style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-1.5px', marginBottom: '0.5rem' }}>Professional Identity</h1>
+               <p style={{ color: '#666' }}>Manage your personal and company metadata for the B2B ecosystem.</p>
+            </header>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={formData.email}
-                    disabled
-                  />
-                  <Form.Text className="text-muted">
-                    Email cannot be changed
-                  </Form.Text>
-                </Form.Group>
+            <form onSubmit={handleSubmit}>
+              <SectionTitle><User size={20} /> Personal Information</SectionTitle>
+              <Grid cols={2} gap="1.5rem">
+                 <div>
+                    <Label>Full Name</Label>
+                    <Input name="name" value={formData.name} onChange={handleChange} required />
+                 </div>
+                 <div>
+                    <Label>Email Address (Locked)</Label>
+                    <Input value={user?.email} disabled style={{ opacity: 0.6 }} />
+                 </div>
+              </Grid>
 
-                <hr className="my-4" />
+              <SectionTitle><Building2 size={20} /> Company Profile</SectionTitle>
+              <Grid cols={2} gap="1.5rem">
+                 <div>
+                    <Label>Entity / Company Name</Label>
+                    <Input name="companyName" value={formData.companyName} onChange={handleChange} placeholder="e.g. Acme Innovations" />
+                 </div>
+                 <div>
+                    <Label>Official Website</Label>
+                    <Input name="companyWebsite" value={formData.companyWebsite} onChange={handleChange} placeholder="https://acme.io" />
+                 </div>
+              </Grid>
+              <div style={{ marginTop: '1.5rem' }}>
+                 <Label>Company Bio / Vision</Label>
+                 <textarea 
+                   name="bio"
+                   value={formData.bio}
+                   onChange={handleChange}
+                   placeholder="Describe your company's role in the ecosystem..."
+                   style={{ width: '100%', padding: '1rem', borderRadius: '8px', border: '1px solid #e0e0e0', minHeight: '100px', fontFamily: 'inherit' }}
+                 />
+              </div>
 
-                <h5 className="mb-3">Change Password</h5>
-                <Form.Group className="mb-3">
-                  <Form.Label>Current Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={formData.currentPassword}
-                    onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                  />
-                </Form.Group>
+              <SectionTitle><Globe size={20} /> Branding & Visibility</SectionTitle>
+              <Grid cols={2} gap="1.5rem">
+                 <div>
+                    <Label>Company Logo URL</Label>
+                    <Input name="logo" value={formData.logo} onChange={handleChange} placeholder="https://path-to-logo.png" />
+                 </div>
+                 <div>
+                    <Label>Core Slogan / Mission Statement</Label>
+                    <Input name="slogan" value={formData.slogan} onChange={handleChange} placeholder="e.g. Revolutionizing the industry" />
+                 </div>
+              </Grid>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={formData.newPassword}
-                    onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                  />
-                </Form.Group>
+              <SectionTitle><Briefcase size={20} /> Portfolio & Legit Works</SectionTitle>
+              <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Showcase your past projects and successful collaborations.</p>
+              
+              {formData.portfolio.map((item, index) => (
+                <Card key={index} style={{ marginBottom: '1.5rem', background: '#fcfcfc', border: '1px dashed #ddd' }}>
+                   <Flex justify="space-between" style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ fontWeight: 800 }}>Project #{index + 1}</h4>
+                      <Button variant="outline" size="sm" type="button" onClick={() => removePortfolioItem(index)} style={{ color: '#e53e3e', borderColor: '#fed7d7' }}>
+                         <Trash2 size={14} />
+                      </Button>
+                   </Flex>
+                   <Grid cols={2} gap="1rem">
+                      <div>
+                        <Label>Project Title</Label>
+                        <Input value={item.title} onChange={(e) => updatePortfolioItem(index, 'title', e.target.value)} required />
+                      </div>
+                      <div>
+                        <Label>Project Link</Label>
+                        <Input value={item.link} onChange={(e) => updatePortfolioItem(index, 'link', e.target.value)} placeholder="https://..." />
+                      </div>
+                   </Grid>
+                   <div style={{ marginTop: '1rem' }}>
+                      <Label>Description of Work</Label>
+                      <Input value={item.description} onChange={(e) => updatePortfolioItem(index, 'description', e.target.value)} />
+                   </div>
+                </Card>
+              ))}
+              
+              <Button variant="outline" type="button" onClick={addPortfolioItem} style={{ width: '100%' }}>
+                 <Plus size={18} style={{ marginRight: 8 }} /> Add Portfolio Item
+              </Button>
 
-                <Form.Group className="mb-4">
-                  <Form.Label>Confirm New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  />
-                </Form.Group>
+              <SectionTitle><Lock size={20} /> Security Update</SectionTitle>
+              <Grid cols={3} gap="1rem">
+                 <div>
+                    <Label>Current Passphrase</Label>
+                    <Input type="password" name="currentPassword" value={formData.currentPassword} onChange={handleChange} />
+                 </div>
+                 <div>
+                    <Label>New Passphrase</Label>
+                    <Input type="password" name="newPassword" value={formData.newPassword} onChange={handleChange} />
+                 </div>
+                 <div>
+                    <Label>Confirm New</Label>
+                    <Input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} />
+                 </div>
+              </Grid>
 
-                <div className="d-grid">
-                  <Button type="submit" variant="primary">
-                    Update Profile
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+              <Button size="lg" style={{ width: '100%', marginTop: '3.5rem' }} disabled={loading}>
+                 <Save size={18} style={{ marginRight: 8 }} />
+                 {loading ? 'Saving Identity...' : 'Update Ecosystem Profile'}
+              </Button>
+            </form>
+
+            <Flex gap="1rem" style={{ marginTop: '2.5rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: '16px' }}>
+               <ShieldCheck size={20} style={{ color: '#2f855a' }} />
+               <span style={{ fontSize: '0.85rem', color: '#666' }}>Your information is verified and secured using industry-standard B2B SaaS protocols.</span>
+            </Flex>
+          </ProfileCard>
+        </motion.div>
+      </Container>
+    </ProfileWrapper>
   );
 };
 
-export default Profile; 
+export default Profile;
